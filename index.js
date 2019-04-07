@@ -86,7 +86,7 @@ export const block = (state, action)=>{
   let newState = _.cloneDeep(state)
   let {inspector} = action
   newState.inspectors[inspector].state = 'block'
-  _writeToStream(state) //inspector blocked
+ // _writeToStream(state) //inspector blocked
   return newState
 }
 
@@ -94,7 +94,7 @@ export const assembling = (state, action)=>{
   let newState = _.cloneDeep(state)
   let {machine} = action
   newState.machines[machine].state = 'busy'
-  _writeToStream(state) //machine busy blocked
+  //_writeToStream(state) //machine busy blocked
   return newState
 }
 
@@ -102,7 +102,7 @@ export const idle = (state, action)=>{
   let newState = _.cloneDeep(state)
   let {machine} = action
   newState.machines[machine].state = 'idle'
-   _writeToStream(state) // machine idle
+  // _writeToStream(state) // machine idle
   return newState
 }
 
@@ -113,7 +113,7 @@ export const unblock = (state, action)=>{
   if(!blockedInspector) return state
   newState.inspectors[blockedInspector.id].current=null
   newState.buffers[buffer].length--
-  _writeToStream(state) // inspector unblocked
+  //_writeToStream(state) // inspector unblocked
   return newState
 }
 
@@ -135,7 +135,7 @@ export const fillBuffer=(state, action)=>{
   const newState = _.cloneDeep(state)
   const {buffer} = action
   newState.buffers[buffer].length++ 
-  _writeToStream(state) // inspector unblocked
+  //_writeToStream(state) // inspector unblocked
   return newState
 }
 export let rootReducer = createReducer(init,{
@@ -161,7 +161,7 @@ stream.on('ready',()=>{
   sagaMiddleware.run(rootSaga)
 })
 
-const _writeToStream = (state)=>{
+/*const _writeToStream = (state)=>{
   let hour = timer.getUTCHours()
   let min = timer.getUTCMinutes()
   let sec = timer.getUTCSeconds()
@@ -176,11 +176,11 @@ ${c1_m1.length} ${c1_m2.length} ${c1_m3.length} ${c2_m2.length} ${c3_m3.length} 
 timestamp: ${hour}:${min}:${sec}\n`, 
     'utf-8'
   )
-}
+}*/
 
 
 setTimeout(()=>{
   store.dispatch({type:'FINISH'})
   stream.end()
   process.exit(0)
-}, 120000)
+}, 60000)
