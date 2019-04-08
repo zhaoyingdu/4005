@@ -97,7 +97,6 @@ const machineSaga = function*({buffers, machine}){
       }
     yield put({type:'UNBLOCK', job/*, buffer:buffer.name*/})
       buffer.length--
-
     }
     yield delay(_getProcessTime(machine))
 
@@ -118,9 +117,14 @@ export const inspectorSaga = function*({jobs, buffers, inspector}){
     let minBuffer = yield call(getAvailableBuffer,buffersByJob)
     if(!minBuffer) { 
       performance.mark(INSPECTOR_BLOCK_START_MARK)
-      console.log('blocked '+inspector+buffers[0].length + job)
-      yield take(action=>action.type==='UNBLOCK'&& action.job === job)  
-      console.log('unblocked '+inspector)     
+      //console.log('blocked '+inspector+buffers[0].length + job)
+      
+      let taken = false
+      while(!taken){
+        yield take(action=>action.type==='UNBLOCK'&& action.job === job)
+        taken = true
+      }  
+      //console.log('unblocked '+inspector)     
       performance.mark(INSPECTOR_BLOCK_END_MARK)
       performance.measure(inspector,INSPECTOR_BLOCK_START_MARK, INSPECTOR_BLOCK_END_MARK)
     } 
