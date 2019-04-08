@@ -1,133 +1,87 @@
 import {channel, buffers,runSaga, stdChannel } from 'redux-saga'
-import {take, call, delay,fork,put, all, cancel, cancelled} from 'redux-saga/effects'
-import {
-  performance,
-  PerformanceObserver
-} from 'perf_hooks'
+import {take, call, delay,fork,put, all, cancel, cancelled,spawn, takeLatest, takeEvery} from 'redux-saga/effects'
 import fs from 'fs'
 import _ from 'lodash'
 import {EventEmitter} from 'events'
 import {s1json,s22json,s23json,w1json,w2json,w3json} from './data/index'
 
 
-const emitter = new EventEmitter()
-const iochannel = stdChannel()
 
 
-emitter.on("action", iochannel.put)
-export const myIO = {
-  iochannel,
-  dispatch(output) {
-    emitter.emit("action", output)
-  },
-  getState() {
-    throw new Error('no need to use store')
+const machineSaga = function*({buffers, machine}){  
+  const watchers = ()=>{
+    return buffers.map(buffer=>{
+      return take('PUSH'+buffer.name)
+    })
   }
-}
-
-
-const MACHINE_IDLE_START_MARK = `machine_idle_start`
-const MACHINE_IDLE_END_MARK = `machine_idle_end`
-const INSPECTOR_BLOCK_START_MARK = `inspector_block_start`
-const INSPECTOR_BLOCK_END_MARK = `inspector_block_end`
-
-var data = [
-  {class: "inspector1", label: "i1 block", times: [], duration:0},
-  {class: "inspector2", label: "i2 block", times: [], duration:0},
-  {class: "machine1", label: "m1 idle ", times: [], duration:0},
-  {class: "machine2", label: "m2 idle ", times: [], duration:0},
-  {class: "machine3", label: "m3 idle ", times: [], duration:0}
-];
-const obs = new PerformanceObserver((list, observer) => {
-  const measures = list.getEntriesByType('measure')
-  //console.log(measures.length)
-  for(let measure of measures){
-    const row = _.find(data,{class: measure.name})
-    _.invoke(row, 'times.push',{start_time:measure.startTime, end_time:measure.startTime+measure.duration})
-    row.duration+=measure.duration
-    //console.log(row)
+  
+  const workers = ()=>{
+    return buffers.map(buffer=>{
+      return put({type:'POP', buffer})
+    })
   }
-  performance.clearMarks()
-  //performance.clearMeasures()
-});
-obs.observe({ entryTypes: ['measure'], buffered: true });
-
-
-
-export const rootSaga = function*(){
-  try{
-  const c1_m1 = yield call(channel, buffers.fixed(2))
-  const c1_m2 = yield call(channel, buffers.fixed(2))
-  const c1_m3 = yield call(channel, buffers.fixed(2))
-  const c2_m2 = yield call(channel, buffers.fixed(2))
-  const c3_m3 = yield call(channel, buffers.fixed(2))
-
-  const lengthedBuffers = [
-    {buffer:c1_m1, length:0, name:'c1_m1', job:'c1'},
-    {buffer:c1_m2, length:0, name:'c1_m2', job:'c1'},
-    {buffer:c1_m3, length:0, name:'c1_m3', job:'c1'},
-    {buffer:c2_m2, length:0, name:'c2_m2', job:'c2'},
-    {buffer:c3_m3, length:0, name:'c3_m3', job:'c3'},
-  ]
-
-  yield fork(inspectorSaga, {jobs:['c1'], buffers:_.at(lengthedBuffers,[0,1,2]), inspector:'inspector1'}) //inspector1
-  yield fork(inspectorSaga, {jobs:['c2','c3'], buffers:_.at(lengthedBuffers,[3,4]), inspector:'inspector2'}) //inspector2
-  yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[0]), machine:'machine1'}) //machine1
-  yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[1,3]), machine:'machine2'}) //machine1
-  yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[2,4]), machine:'machine3'}) //machine1
-}finally{
-  if(yield cancelled()){
-    fs.writeFileSync('./data.json', JSON.stringify(data))
-  }
-}
-}
-
-const machineSaga = function*({buffers, machine}){
   while(true){
-
-    performance.mark(MACHINE_IDLE_START_MARK)
-    let jobs = yield all(buffers.map(buffer=>take(buffer.buffer)))
-    performance.mark(MACHINE_IDLE_END_MARK)
-    performance.measure(machine,MACHINE_IDLE_START_MARK, MACHINE_IDLE_END_MARK)
-
-    for(let job of jobs){
-      const buffer = _.find(buffers, {job:job})
-      if(machine==='machine1'){
-        console.log(buffer.name+' '+buffer.length+' '+job) 
-      }
-    yield put({type:'UNBLOCK', job/*, buffer:buffer.name*/})
-      buffer.length--
-
-    }
+    yield all(watchers())
+    yield all(workers())
     yield delay(_getProcessTime(machine))
-
   }
 }
 
+
+const watchInspectorComplete = (buffers)=>{
+  const getBuffer = (job)=>{
+    const buffersByJob = _getBuffersByJob(job, buffers)
+    return getAvailableBuffer(buffersByJob)
+  }
+  const watcher = function*(){
+    while(true){
+      const {job,inspector} = yield take('COMPLETE')
+      const buffer = yield call(getBuffer,job)
+      if(!buffer){
+        yield put({type:'BLOCK', inspector})
+      }else{
+        yield put({type:'PUSH'+buffer.name, buffer})
+        buffer.length++
+        yield put({type:inspector, buffer})
+      }
+    }
+  }
+  return watcher
+}
+
+const watchPool = ()=>{
+  let pool = []
+  const notify = function*(){
+    while(true){
+      const {buffer} = yield take('POP')
+      buffer.length--
+      const {inspector} = buffer
+      if(pool.includes(inspector)){
+        _.remove(pool, blocked=>blocked === inspector)
+        yield put({type:inspector, buffer})
+      }
+    }
+  }
+  const wait = function*(){
+    while(true){
+      const {inspector} = yield take('BLOCK')
+      pool.push(inspector)
+    }
+  }
+  const watcher = function*(){
+    yield fork(wait)
+    yield fork(notify)
+  }
+
+  return watcher
+}
 
 export const inspectorSaga = function*({jobs, buffers, inspector}){
-  if(inspector === 'inspector1'){
-    console.log(buffers)
-  }
   while(true){
     const job = jobs[_.random(0,jobs.length-1)]
-    const buffersByJob = _getBuffersByJob(job, buffers)
-
     yield delay(_getProcessTime(inspector,job)) 
-
-    let minBuffer = yield call(getAvailableBuffer,buffersByJob)
-    if(!minBuffer) { 
-      performance.mark(INSPECTOR_BLOCK_START_MARK)
-      console.log('blocked '+inspector+buffers[0].length + job)
-      yield take(action=>action.type==='UNBLOCK'&& action.job === job)  
-      console.log('unblocked '+inspector)     
-      performance.mark(INSPECTOR_BLOCK_END_MARK)
-      performance.measure(inspector,INSPECTOR_BLOCK_START_MARK, INSPECTOR_BLOCK_END_MARK)
-    } 
-    minBuffer = getAvailableBuffer(buffersByJob)
-
-    yield put(minBuffer.buffer, job)
-    minBuffer.length++
+    yield put({type:'COMPLETE', job,inspector})
+    yield take(inspector)
   }
 }
 
@@ -138,7 +92,6 @@ export const _getBuffersByJob = (job, buffers)=>{
 export const getAvailableBuffer = (buffers)=>{
   if(_.every(buffers, ({length})=>length===2)) 
   {
-    //console.log(buffers)
     return null
   }
   return  _.minBy(buffers, 'length')
@@ -148,9 +101,9 @@ const _getProcessTime = (name, ...args)=>{
   const {job} = args
   switch(name){
     case 'machine1':
-      return _.sample(w1json)
+      return 6000//_.sample(w1json)
     case 'machine2':
-      return _.sample(w2json)
+      return 6000// _.sample(w2json)
     case 'machine3':
       return _.sample(w3json)
     case 'inspector1':
@@ -166,10 +119,6 @@ const _getProcessTime = (name, ...args)=>{
   }
 }
 
-process.on('beforeExit',()=>{
-  fs.writeFileSync('./data.json', JSON.stringify(data))
-})
-
 
 const root = function*(){
   const rootTask = yield fork(rootSaga)
@@ -177,7 +126,65 @@ const root = function*(){
   yield cancel(rootTask)
 }
 
+
+
+
+const emitter = new EventEmitter()
+const createSagaIO = (emitter, getStateResolve) => {
+  const channel = stdChannel();
+  const sagaMonitor = {
+    effectTriggered:({effect, parentEffectId, effectId})=>{
+      //console.log(`pid: ${effectId}, ppid: ${parentEffectId}, effect: ${JSON.stringify(effect)}\n`)
+      //monitorStream.writable
+        //? _.noop()//monitorStream.write(`pid: ${effectId}, ppid: ${parentEffectId}, effect: ${JSON.stringify(effect)}\n`)
+        //: _.noop()
+    }
+  }
+  
+  emitter.on("action", channel.put);
+
+  return {
+    channel,
+    dispatch: output => {
+      emitter.emit("action", output);
+    },
+    getState: () => {
+      "sampleValue";
+    },
+    sagaMonitor
+  };
+};
+
+
+
+export const rootSaga = function*(){
+  try{
+    const lengthedBuffers = [
+      {length:0, name:'c1_m1', job:'c1', machine:'machine1', inspector:'inspector1'},
+      {length:0, name:'c1_m2', job:'c1', machine:'machine2', inspector:'inspector1'},
+      {length:0, name:'c1_m3', job:'c1', machine:'machine3', inspector:'inspector1'},
+      {length:0, name:'c2_m2', job:'c2', machine:'machine2', inspector:'inspector1'},
+      {length:0, name:'c3_m3', job:'c3', machine:'machine3', inspector:'inspector1'},
+    ]
+
+    yield fork(watchInspectorComplete(lengthedBuffers))
+    yield fork(watchPool())
+
+    yield spawn(inspectorSaga, {jobs:['c1'], buffers:_.at(lengthedBuffers,[0,1,2]), inspector:'inspector1'}) //inspector1
+   yield fork(inspectorSaga, {jobs:['c2','c3'], buffers:_.at(lengthedBuffers,[3,4]), inspector:'inspector2'}) //inspector2
+    yield spawn(machineSaga, {buffers: _.at(lengthedBuffers,[0]), machine:'machine1'}) //machine1
+   yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[1,3]), machine:'machine2'}) //machine1
+   yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[2,4]), machine:'machine3'}) //machine1
+  }finally{
+    if(yield cancelled()){
+      fs.writeFileSync('./data.json', JSON.stringify(data))
+    }
+  }
+}
+
+
+
 runSaga(
-  myIO,
+  createSagaIO(emitter),
   root
 )
