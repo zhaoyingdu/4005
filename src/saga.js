@@ -7,7 +7,7 @@ import {
 import fs from 'fs'
 import _ from 'lodash'
 import {EventEmitter} from 'events'
-import {s1json,s22json,s23json,w1json,w2json} from './data/index'
+import {s1json,s22json,s23json,w1json,w2json,w3json} from './data/index'
 
 
 const emitter = new EventEmitter()
@@ -15,7 +15,7 @@ const iochannel = stdChannel()
 
 
 emitter.on("action", iochannel.put)
-const myIO = {
+export const myIO = {
   iochannel,
   dispatch(output) {
     emitter.emit("action", output)
@@ -42,13 +42,11 @@ const obs = new PerformanceObserver((list, observer) => {
   const measures = list.getEntriesByType('measure')
   //console.log(measures.length)
   for(let measure of measures){
-    console.log(measure.name)
     const row = _.find(data,{class: measure.name})
     _.invoke(row, 'times.push',{start_time:measure.startTime, end_time:measure.startTime+measure.duration})
     row.duration+=measure.duration
     //console.log(row)
   }
-  console.log(list.getEntriesByType('mark').length)
   performance.clearMarks()
   //performance.clearMeasures()
 });
@@ -86,42 +84,49 @@ export const rootSaga = function*(){
 
 const machineSaga = function*({buffers, machine}){
   while(true){
-    yield put({type:'IDLE', machine})
+
     performance.mark(MACHINE_IDLE_START_MARK)
     let jobs = yield all(buffers.map(buffer=>take(buffer.buffer)))
     performance.mark(MACHINE_IDLE_END_MARK)
     performance.measure(machine,MACHINE_IDLE_START_MARK, MACHINE_IDLE_END_MARK)
+
     for(let job of jobs){
       const buffer = _.find(buffers, {job:job})
+      if(machine==='machine1'){
+        console.log(buffer.name+' '+buffer.length+' '+job) 
+      }
+    yield put({type:'UNBLOCK', job/*, buffer:buffer.name*/})
       buffer.length--
-      yield put({type:'UNBLOCK', job, buffer:buffer.name})
+
     }
-    yield put({type:'ASSEMBLING', machine})
     yield delay(_getProcessTime(machine))
-    yield put({type:'COMPLETE_ASSEMBLE', machine})
+
   }
 }
 
 
-const inspectorSaga = function*({jobs, buffers, inspector}){
+export const inspectorSaga = function*({jobs, buffers, inspector}){
+  if(inspector === 'inspector1'){
+    console.log(buffers)
+  }
   while(true){
     const job = jobs[_.random(0,jobs.length-1)]
     const buffersByJob = _getBuffersByJob(job, buffers)
-    yield put({type:'INSPECTING', job})
+
     yield delay(_getProcessTime(inspector,job)) 
-    let minBuffer = getAvailableBuffer(buffersByJob)
+
+    let minBuffer = yield call(getAvailableBuffer,buffersByJob)
     if(!minBuffer) { 
       performance.mark(INSPECTOR_BLOCK_START_MARK)
-      console.log('blocked')
-      console.log(inspector)
-      yield put({type:'BLOCK', inspector}) 
-      yield take(action=>action.type==='UNBLOCK'&& action.job === job)       
+      console.log('blocked '+inspector+buffers[0].length + job)
+      yield take(action=>action.type==='UNBLOCK'&& action.job === job)  
+      console.log('unblocked '+inspector)     
       performance.mark(INSPECTOR_BLOCK_END_MARK)
       performance.measure(inspector,INSPECTOR_BLOCK_START_MARK, INSPECTOR_BLOCK_END_MARK)
     } 
     minBuffer = getAvailableBuffer(buffersByJob)
+
     yield put(minBuffer.buffer, job)
-    yield put({type:'ENQUEUE', buffer:minBuffer.name})
     minBuffer.length++
   }
 }
@@ -159,7 +164,6 @@ const _getProcessTime = (name, ...args)=>{
     default:
       throw new Error('error... identifier not recognized')
   }
-  return _.random(1000,2000, false)
 }
 
 process.on('beforeExit',()=>{

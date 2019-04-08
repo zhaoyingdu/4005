@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import { testGetAvailableBuffer, buffers, testGetBufferByJob} from './data';
-import { getAvailableBuffer, _getBuffersByJob } from '../index.js'
+import { getAvailableBuffer, _getBuffersByJob } from '../src/saga.js'
 
 describe('test getAvailableBuffer', ()=>{
   test.each(testGetAvailableBuffer)(`expect returned buffer index to be %d `,(expectedIndex, buffersArr)=>{
