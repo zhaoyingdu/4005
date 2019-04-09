@@ -27,9 +27,6 @@ export default ()=>{
       const measures = list.getEntriesByType('measure')
       for(let measure of measures){
         const className = measure.name.split('_')[0]
-        if(className === 'inspector1'||className === 'inspector2'){
-          console.log(className)
-        }
         const row = _.find(data,{class: className})
         _.invoke(row, 'times.push',{start_time:measure.startTime, end_time:measure.startTime+measure.duration})
         row.duration+=measure.duration
