@@ -65,11 +65,17 @@ module.exports = {
 		]
 	},
 
+	entry:path.resolve(__dirname, './src/index.js'),
 	output: {
-		filename: '[name].js'
-	},
+    filename: 'main.js',
+    path: path.resolve(__dirname, 'dist')
+  },
 
 	mode: 'development',
+	devtool: 'inline-source-map',
+	devServer: {
+		contentBase: './dist'
+	},
 
 	optimization: {
 		splitChunks: {
