@@ -1,8 +1,13 @@
-# similation project
+# Similation Project Report
 
-## iteration1
+### project link: https://github.com/zhaoyingdu/4005  
+### issues: https://github.com/zhaoyingdu/4005/issues
 
-## iteration2 Model design
+
+## Iteration1  
+this section contains many images and has been moved to the end for readability purpose.
+
+## Iteration2: Model design
 1. Network Model
   * This matrix represent the node trasitions inside the network we are modeling:
    ```
@@ -137,7 +142,7 @@ These buffers can not be represented in the matrix, therefore they are explicitl
     }
 ```
 
-## iteration3 Model translation:
+## Iteration3: Model translation:
 
 1. source code with comments
 ```javascript
@@ -518,7 +523,7 @@ export default (userConfig)=>{
   })
 }
 ```
-2. verification
+2. verification  
 I have tested the function getAvailableBuffers and getBuffersbyJob,to ensure they return correct buffers based on input  
 [Test data](https://github.com/zhaoyingdu/4005/blob/master/__test__/data.js)  
 [Test Script](https://github.com/zhaoyingdu/4005/blob/master/__test__/redux.test.js)  
@@ -546,15 +551,15 @@ validation run
 **name:** machine_2 and machine_3 first  
 **design goal:** increase the throughput by reducing the occurrance of inspector2 being blocked, or more explicitly, try to reduce the occurrance of following to senarios:  
   1. senario 1:
-    inspector2: blocking after processing component2  
-    machine2: c2_m2 is full, c1_m2 is empty  
-    machine3: 
+    * inspector2: blocking after processing component2  
+    * machine2: c2_m2 is full, c1_m2 is empty  
+    * machine3: 
       (best case senario) not idle, c3_m3 and c1_m3 are both non-empty  
       (worst case senario) idle, c3_m3 and c1_m3 are empty  
   2. senario 2:
-    inspector2: blocking after processing component3  
-    machine3: c3_m3 is full, c1_m3 is empty  
-    machine2:  
+    * inspector2: blocking after processing component3  
+    * machine3: c3_m3 is full, c1_m3 is empty  
+    * machine2:  
       (best case senario) not idle, c2_m2 and c1_m2 are both non-empty  
       (worst case senario) idle, c2_m2 and c1_m2 are empty  
 **reasoning:**  
@@ -564,18 +569,25 @@ validation run
   If we give m2 and m3 higher priority over m1, only m1's uptime would be adversely affected,
   but i1 would have same uptime ratio as before, and m2, m3 and i2 will have higher uptime ratio.  
 **implementation:**
-  when inspector checking for available buffer to dispatch job, it will check buffer patterns in the following
-  order:
-  priority-1:
-    machine 2 or machine 3 who is idle waiting for only component1
-    c1_m2 = 0 AND c2_m2 !=0  or c1_m3 = 0 AND c3_m3 !=0
-    if found, dispatch to corresponding c1's buffer
-  priority-2:
-    machine 2 or machine 3 who has both buffer empty
-    c1_m2 = 0 AND c2_m2 =0  or c1_m3 = 0 AND c3_m3 = 0
-    if found, dispatch to corresponding c1's buffer
-  priority 3:
-    c1_m1 is empty
-    if true dispatch to c1_m1
-  default:
-    use default principle stated in question
+  when inspector checking for available buffer to dispatch job, it will check buffer patterns in the following order:  
+  * priority-1:  
+    machine 2 or machine 3 who is idle waiting for only component1  
+    c1_m2 = 0 AND c2_m2 !=0  or c1_m3 = 0 AND c3_m3 !=0  
+    if found, dispatch to corresponding c1's buffer  
+  * priority-2:  
+    machine 2 or machine 3 who has both buffer empty  
+    c1_m2 = 0 AND c2_m2 =0  or c1_m3 = 0 AND c3_m3 = 0  
+    if found, dispatch to corresponding c1's buffer  
+  * priority 3:  
+    c1_m1 is empty  
+    if true dispatch to c1_m1  
+  * default:  
+    use default principle stated in question  
+
+## iteration1  
+**histograms/frequency distribution**  
+![](assets/histogram1.png)  
+![](assets/histogram1.png)  
+**qq-plots**  
+![](/assets/qq-plots1.png)  
+![](assets/qq-plots2.png)
