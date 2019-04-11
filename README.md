@@ -588,8 +588,8 @@ validation run
 
 ## iteration1  
 **histograms/frequency distribution**  
-![](/assets/histogram1.png)  
-![](/assets/histogram1.png)  
+![](/assets/histogram1.png) 
+![](/assets/histogram2.png)  
 **qq-plots**  
-![](/assets/qq-plots1.png)  
+![](/assets/qq-plots1.png)
 ![](/assets/qq-plots2.png)
