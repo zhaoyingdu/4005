@@ -538,13 +538,13 @@ Test results:
 normal run, can be used to comparing with validation run:  
 **input**: default(i.e. process time for each node was selected randomly from the its corresponding data file)
 **result**:  
-![base case](/assets/normal_default.png)  
+![base case](/assets/normal_default.png)
 
 validation run  
 **validation input**: machine 1 assembly time = 2000 ms, total runtime = 10s  
 **expected result**: product one has significant low throughput,  machine 1 barely idles  
 **actual result**:  
-![machine1 assemble slow](/assets/validation_m1_2s.png)  
+![machine1 assemble slow](/assets/validation_m1_2s.png)
 
 
 
