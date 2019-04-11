@@ -1,6 +1,8 @@
 # Similation Project Report
 
-### project link: https://github.com/zhaoyingdu/4005  
+### project links: 
+view repo: [github repo](https://github.com/zhaoyingdu/4005)  
+if you want to run the project on your computer, you can just download the proj and open /dist/index.html in broswer.     
 ### issues: https://github.com/zhaoyingdu/4005/issues
 
 
