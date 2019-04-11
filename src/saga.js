@@ -7,10 +7,7 @@ import {s1json,s22json,s23json,w1json,w2json,w3json} from './data/index'
 import Observer from './performance'
 
 let observer = Observer()// performance mearurer that is used to measure idle/block durations
-let config = {
-  duration: 20000, // default to run simulation 20 secends
-  principle: 'original', //default to use principle stated in problem pdf
-}
+let config;
 
 
 /**
@@ -48,11 +45,29 @@ export const getAvailableBuffer = (buffers)=>{
   if(config.priority === 'original' || buffers[0].inspector!=='c1'){
     return _.minBy(buffers, 'length')
   }else{
-    // this principle is explained in seperator deliverable file
-    const mostFavor = _.minBy(_.reject(buffers, {machine:'machine1'}))
-    const bufferc1 = _.find(buffers, {machine:'c1'})
-    return bufferc1.length < mostFavor.length
-      ? bufferc1: mostFavor  
+    // this principle is explained in seperator readme section iteration4
+    // check priority group 1
+    const machine2Buffers = _.keyBy(_.filter(lengthedBuffers, {machine:'machine2'}),'name')
+    const machine3Buffers = _.keyBy(_.filter(lengthedBuffers, {machine:'machine3'}),'name')
+    if(machine2Buffers['c1_m2'].length===0 && machine2Buffers['c2_m2'].length!==0){
+      return _.get(lengthedBuffers, {name:'c1_m2'})
+    }
+    if(machine3Buffers['c1_m3'].length===0 && machine3Buffers['c3_m3'].length!==0){
+      return _.get(lengthedBuffers, {name:'c1_m2'})
+    }
+    // check priority group 2
+    if(machine2Buffers['c1_m2'].length===0 && machine2Buffers['c2_m2'].length===0){
+      return _.get(lengthedBuffers, {name:'c1_m2'})
+    }
+    if(machine3Buffers['c1_m3'].length===0 && machine3Buffers['c3_m3'].length===0){
+      return _.get(lengthedBuffers, {name:'c1_m3'})
+    }
+    // check priority group 3
+    if(_.get(buffers, {name:'c1_m1', length:0})){
+      return _.get(buffers, {name:'c1_m1'})
+    }
+    //use default
+      return _.minBy(buffers, 'length')
   }
 }
 /**
@@ -65,18 +80,18 @@ const _getProcessTime = (name, ...args)=>{
   const {job} = args
   switch(name){
     case 'machine1':
-      return _.sample(w1json)
+      return config.timings.machine1 ?config.timings.machine1 : _.sample(w1json)
     case 'machine2':
-      return _.sample(w2json)
+      return config.timings.machine2 ?config.timings.machine2 :_.sample(w2json)
     case 'machine3':
-      return _.sample(w3json)
+      return config.timings.machine3 ?config.timings.machine3 : _.sample(w3json)
     case 'inspector1':
-    return _.sample(s1json)
+    return config.timings.inspector1 ?config.timings.inspector1 :_.sample(s1json)
     case 'inspector2':
       if(job === 'c2'){
-        return _.sample(s22json)
+        return config.timings.inspector2_c2 ?config.timings.inspector2_c2 :_.sample(s22json)
       }else{
-        return _.sample(s23json)
+        return config.timings.inspector2_c3 ?config.timings.inspector2_c3 :_.sample(s23json)
       }
     default:
       throw new Error('error... identifier not recognized')
@@ -211,16 +226,13 @@ const machineSaga = function*({buffers, machine}){
     }
 
   }
-
   yield fork(main)
-
 }
 export const inspectorSaga = function*({jobs,buffers, inspector}){
   const getBuffer = (job)=>{
     const buffersByJob = _getBuffersByJob(job, buffers)
     return getAvailableBuffer(buffersByJob)
   }
-
   const pushBuffer = function*(buffer){
     buffer.length++
     yield put({type:`PUSH_${buffer.machine}-${buffer.job}`, buffer})
@@ -298,12 +310,8 @@ export const inspectorSaga = function*({jobs,buffers, inspector}){
       yield call(pushBuffer, buffer)
     }
   }
-
   yield fork(main)
-
 }
-
-
 
 const emitter = new EventEmitter()
 const createSagaIO = (emitter, getStateResolve) => {
@@ -322,7 +330,7 @@ const createSagaIO = (emitter, getStateResolve) => {
 
 export const rootSaga = function*(){
   //reset state before each simulation run
-  const lengthedBuffers = _.cloneDeep(lengthedBuffers)
+  _.forEach(lengthedBuffers, e=>e.length=0)
   throughPut.p1 = 0
   throughPut.p2 = 0
   throughPut.p3 = 0
@@ -337,35 +345,44 @@ export const rootSaga = function*(){
     yield fork(machineSaga, {buffers: _.at(lengthedBuffers,[2,4]), machine:'machine3'}) //machine1 thread
   }finally{
     if(yield cancelled()){
-      console.log('cancelled')
     }
   }
 }
 
 const root = function*(){
+  //console.log('saga '+ config)
   const rootTask = yield fork(rootSaga)
   yield call(()=>observer.start())
   observer.markProcessStart()
-  console.log('started')
   yield delay(config.duration)
   yield cancel(rootTask)
-  observer.markProcessEnd()
-  observer.measureProcessDuration()
-  console.log('ended')
+  yield call(()=>observer.markProcessEnd())
+  yield call(()=>observer.measureProcessDuration())
   return observer.end()
   
 }
 
 export default (userConfig)=>{
-  
+  // reset config on each run
+  config = {
+    duration: 20000, // default to run simulation 20 secends
+    principle: 'original', //default to use principle stated in problem pdf,
+    timings:{ // work in progress, allow ui Tweaking individual process times
+      inspector1: -1,
+      inspector2_c2: -1,
+      inspector2_c3: -1,
+      machine1: -1,
+      machine2: -1,
+      machine3: -1
+    }
+  }
   config = {...config, ...userConfig} // overwrite configuration if provided by user
-  //console.log(config)
+  console.log(config)
   return  runSaga(createSagaIO(emitter),root).toPromise().then(data=>{
     const plucked = []
     _.forEach(data, (measurement,index)=>{
       plucked[index] = measurement.duration
     })
-    console.log(data)
     return [plucked, throughPut]
   })
 }

@@ -1,11 +1,11 @@
 # similation project
 
-iteration1
+## iteration1
 
-iteration2 
-
-Model design
-net work
+## iteration2 Model design
+1. Network Model
+  * This matrix represent the node trasitions inside the network we are modeling:
+   ```
     i1  i2  m1  m2  m3  p1  p2  p3
 c1  1   .   .   .   .   .   .   .
 c2  .   .5  .   .   .   .   .   .
@@ -15,35 +15,35 @@ i2  .   .   .   .5  .5  .   .   .
 m1  .   .   .   .   .   1   .   .
 m2  .   .   .   .   .   .   1   .
 m3  .   .   .   .   .   .   .   1
-
-
-This matrix represent the node trasitions inside the network we are modeling, 
-the avaiable nodes are: 
-  three source nodes(c1,c2,c3): dispatching jobs to inspectors
-  two inspector node(i1,i2): receiving jobs from source nodes and dispacthing them to machine nodes
-  three machine nodes(m1,m2,m3): receiving jobs from inspector node and dispatching them to sink nodes
-  sink nodes(p1,p2,p3): out put node of this net work.   
-
-use ki,j represent's an element in the matrix, then:
-  ki,j = . means transition never happens from node i to node j
-  0< ki,j < 1 means transition can happen from node i to node j with certain probability,
+```
+**Avaiable nodes:**  
+  1. three source nodes(c1,c2,c3): dispatching jobs to inspectors  
+  2. two inspector node(i1,i2): receiving jobs from source nodes and dispacthing them to machine nodes  
+  3. three machine nodes(m1,m2,m3): receiving jobs from inspector node and dispatching them to sink nodes  
+  4. sink nodes(p1,p2,p3): out put node of this net work.    
+   
+**Value meaning for each element:**  
+(Use ki,j represent's an element in the matrix, then)
+  1. ki,j = . means transition never happens from node i to node j  
+  2. 0< ki,j < 1 means transition can happen from node i to node j with certain probability,  
     if the number is 1, means next transtion will happen from node i to node j for sure.
     (for example, both kc2,i2 and kc3,i2 equals 0.5, representing the fact that inspector 2
     picks randomly from c2 and c3)
-  ki,j = x, means the probality of a particular route be taken depends on other conditions when then network
+  3. ki,j = x, means the probality of a particular route be taken depends on other conditions when then network
     starts. In this model, the three x's in row i1 meaning the probability on how inspector 1 dispatching finished
     component depend on the queueing disipline we choose.  
 
-Buffers in the netWork:
-  c1_m1: of queue size 2, getting push event from i1, pop event from m1
-  c1_m2: of queue size 2, getting push event from i1, pop event from m2
-  c1_m3: of queue size 2, getting push event from i1, pop event from m3
-  c2_m2: of queue size 2, getting push event from i2, pop event from m2
-  c3_m3: of queue size 2, getting push event from i2, pop event from m3
-  These buffers can not be represented in the matrix, therefore they are explicitly described here. Their states 
-  determine the network's state
+**Misc: model buffers**  
++ c1_m1: of queue size 2, getting push event from i1, pop event from m1  
++ c1_m2: of queue size 2, getting push event from i1, pop event from m2  
++ c1_m3: of queue size 2, getting push event from i1, pop event from m3  
++ c2_m2: of queue size 2, getting push event from i2, pop event from m2  
++ c3_m3: of queue size 2, getting push event from i2, pop event from m3  
+These buffers can not be represented in the matrix, therefore they are explicitly described here. Their states determine the network's state
 
-Event flow and state transition for each stateful node/buffer(note the system is concurrent, so I made use of wait and signal)
+**Event flow and state transition for each stateful node/buffer**  
+(note the system is concurrent, so I made use of wait and signal)
+```javascript
   system state:
     throughPut_p1, //an integer indicating number of product p1 being produced by the system
     throughPut_p2,
@@ -59,7 +59,7 @@ Event flow and state transition for each stateful node/buffer(note the system is
         continue;
       }else{
         block = true
-        wait for signal 'unblock_component1'; //singal will be coming from machine
+        wait_for_signal 'unblock_component1'; // execution blocked. singal will be coming from machine
         block = false
         buffer = chooseBuffer(discipling)
         buffer.size++
@@ -80,12 +80,12 @@ Event flow and state transition for each stateful node/buffer(note the system is
       }else{
         if(component = compoennt2){
           block = true
-          wait for signal 'unblock_component2'
+          wait_for_signal 'unblock_component2'
           block = false
           c2_m2.size++
           continue;
         }else{
-          wait for signal 'unblock_component3'
+          wait_for_signal 'unblock_component3'
           c2_m2.size++
           continue;
         }
@@ -135,6 +135,11 @@ Event flow and state transition for each stateful node/buffer(note the system is
       delay by machine3 assembly time
       throughPut_p3++
     }
+```
+
+## iteration3 Model translation:
+see complete project
+
 
 MISC(Iteration 1 and iteration4)
 iteration4:
