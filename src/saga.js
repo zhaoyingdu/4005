@@ -80,18 +80,18 @@ const _getProcessTime = (name, ...args)=>{
   const {job} = args
   switch(name){
     case 'machine1':
-      return config.timings.machine1 ?config.timings.machine1 : _.sample(w1json)
+      return config.timings.machine1!==-1 ?config.timings.machine1 : _.sample(w1json)
     case 'machine2':
-      return config.timings.machine2 ?config.timings.machine2 :_.sample(w2json)
+      return config.timings.machine2!==-1 ?config.timings.machine2 :_.sample(w2json)
     case 'machine3':
-      return config.timings.machine3 ?config.timings.machine3 : _.sample(w3json)
+      return config.timings.machine3!==-1 ?config.timings.machine3 : _.sample(w3json)
     case 'inspector1':
-    return config.timings.inspector1 ?config.timings.inspector1 :_.sample(s1json)
+    return config.timings.inspector1!==-1 ?config.timings.inspector1 :_.sample(s1json)
     case 'inspector2':
       if(job === 'c2'){
-        return config.timings.inspector2_c2 ?config.timings.inspector2_c2 :_.sample(s22json)
+        return config.timings.inspector2_c2!==-1 ?config.timings.inspector2_c2 :_.sample(s22json)
       }else{
-        return config.timings.inspector2_c3 ?config.timings.inspector2_c3 :_.sample(s23json)
+        return config.timings.inspector2_c3!==-1 ?config.timings.inspector2_c3 :_.sample(s23json)
       }
     default:
       throw new Error('error... identifier not recognized')

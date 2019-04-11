@@ -19,8 +19,8 @@ source.push(_.cloneDeep(buffers))
 const expected = [0,1,2,3,4,-1]
 export const data_getAvailableBufferDefault = _.zip(expected, source)
 
+// work in progress
 // input and expected output data for test m2/m3_first dicipline, getAvailable buffer 
-
 const m2m3_firstSource = ()=>{
   // pattern header
   // c1_m1, c1_m2, c1_m3, c2_m2, c3_m3
